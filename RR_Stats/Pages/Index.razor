@@ -6,7 +6,7 @@
 @inject IDataAccess Data
 @inject IConfiguration Config
 
-<h1>RR data or something</h1>
+<h2>RR data or something</h2>
 
 <input type="date" name="fiction-date-query" @onchange="OnDateChanged" value=@DateTime.Today.ToString("yyyy-MM-dd")/>
 
@@ -80,7 +80,7 @@ else
         if (_previousCol == column) _sortAscending = !_sortAscending;
         else _sortAscending = true;
 
-        var sortingFunc = _sortAscending
+        Comparison<FictionModel> sortingFunc = _sortAscending
             ? (lhs, rhs) => propertyFunc(lhs).CompareTo(propertyFunc(rhs))
             : (lhs, rhs) => -propertyFunc(lhs).CompareTo(propertyFunc(rhs));
 

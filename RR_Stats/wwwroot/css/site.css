@@ -76,3 +76,8 @@ a, .btn-link {
 .child {
     display: inline-block;
 }
+
+.navbar {
+    width: 40%;
+    margin: auto;
+}
