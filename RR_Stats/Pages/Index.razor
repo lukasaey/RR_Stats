@@ -1,0 +1,107 @@
+﻿@page "/"
+
+@using DataAccess
+@using RR_Stats.Models
+
+@inject IDataAccess Data
+@inject IConfiguration Config
+
+<h1>RR data or something</h1>
+
+<input type="date" name="fiction-date-query" @onchange="OnDateChanged" value=@DateTime.Today.ToString("yyyy-MM-dd")/>
+
+@if (_fictions == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr id="parent">
+            <th>
+                <span>#</span>
+            </th>
+            
+            @foreach (var col in Columns)
+            {
+                <th> 
+                    <span class="child sort-link" @onclick="() => { SortTable(col); }">@col.Name</span>
+                    <span class="child oi @(_sortAscending && _previousCol == col ? "oi oi-caret-bottom" : "oi oi-caret-top")"></span>
+                </th>
+            }
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var (fiction, i) in _fictions.Select((model, i) => (model, i)))
+        {
+            <tr>
+                <td>@($"{i + 1}")</td>
+                @foreach (var col in Columns)
+                {
+                    <td>@col.PropertyFunc(fiction)</td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    class TableColumn
+    {
+        public readonly string Name;
+        public readonly Func<FictionModel, IComparable> PropertyFunc;
+
+        public TableColumn(string name, Func<FictionModel, IComparable> propertyFunc)
+        {
+            Name = name;
+            PropertyFunc = propertyFunc;
+        }
+    }
+
+    static readonly TableColumn[] Columns = new[]
+    {
+        new TableColumn("Title", model => model.title),
+        new TableColumn("Follows", model => model.follows),
+        new TableColumn("Word Count", model => model.word_count),
+        new TableColumn("Created", model => model.created),
+        new TableColumn("Chapters", model => model.chapters)
+    };
+    
+    private TableColumn _previousCol = null;
+    private bool _sortAscending = true;
+
+    private void SortTable(TableColumn column)
+    {
+        var propertyFunc = column.PropertyFunc;
+        if (_previousCol == column) _sortAscending = !_sortAscending;
+        else _sortAscending = true;
+
+        var sortingFunc = _sortAscending
+            ? (lhs, rhs) => propertyFunc(lhs).CompareTo(propertyFunc(rhs))
+            : (lhs, rhs) => -propertyFunc(lhs).CompareTo(propertyFunc(rhs));
+
+        _fictions?.Sort(sortingFunc);
+        _previousCol = column;
+    }
+}
+
+@code {
+    List<FictionModel>? _fictions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        const string query = "SELECT * FROM fictions WHERE from_date=CURDATE()";
+        _fictions = await Data.QueryAsync<FictionModel, dynamic>(query, new { }, Config.GetConnectionString("default"));
+    }
+
+
+    private async Task OnDateChanged(ChangeEventArgs arg)
+    {
+        const string query = "SELECT * FROM fictions WHERE from_date=@Date";
+        _fictions = await Data.QueryAsync<FictionModel, dynamic>(query, new { Date = arg.Value }, Config.GetConnectionString("default"));
+    }
+}
