@@ -6,7 +6,6 @@ using System.Threading.Tasks.Dataflow;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
 
 namespace RR_Scraper;
 
@@ -66,11 +65,11 @@ public class Scraper : IScraper
     }
 
 
-    private static int GetRangeAvg(string range)
+    private static int? GetRangeAvg(string range)
     {
         // "$2K - $7K" -> 4500
         var rx = CurrRangeRx.Match(range);
-        if (!rx.Success) return 0;
+        if (!rx.Success) return null;
 
         int num1 = int.Parse(rx.Groups["num1"].Value);
         int num2 = int.Parse(rx.Groups["num2"].Value);
@@ -107,7 +106,7 @@ public class Scraper : IScraper
         var json = await LoadFromWebAsync($"https://www.royalroad.com/api/stats/fiction/{id}?apikey={_apikey}");
         if (json == null) return null;
 
-        var fictionResponse = JsonConvert.DeserializeObject<RRApiResponse>(json.Text);
+        var fictionResponse = JsonConvert.DeserializeObject<RRFictionApiResponse>(json.Text);
         if (fictionResponse == null) return null;
 
         RRData.PatreonData? patreonData = null;

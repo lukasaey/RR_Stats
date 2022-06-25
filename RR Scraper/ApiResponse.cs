@@ -2,6 +2,8 @@
 
 namespace RR_Scraper;
 
+// ApiResponse myDeserializedClass = JsonConvert.DeserializeObject<ApiResponse>(myJsonResponse);
+
 public record AuthorApiResponse
 {
     public long totalWords;
@@ -11,9 +13,8 @@ public record AuthorApiResponse
     public int favorites;
 }
 
-public record RRApiResponse
+public record RRFictionApiResponse
 {
-    // ApiResponse myDeserializedClass = JsonConvert.DeserializeObject<ApiResponse>(myJsonResponse);
     public int id;
     public Author author;
     public string title;
