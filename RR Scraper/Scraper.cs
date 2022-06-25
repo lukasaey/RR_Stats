@@ -1,11 +1,11 @@
 ﻿#nullable enable
+using HtmlAgilityPack;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks.Dataflow;
-using HtmlAgilityPack;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace RR_Scraper;
 
@@ -60,7 +60,9 @@ public class Scraper : IScraper
         var obj = JObject.Parse(json);
         var rates = obj["conversion_rates"]?.ToString();
         if (rates == null)
+        {
             throw new Exception("Failed to initialize currency conversion dictionary.");
+        }
         return JObject.Parse(rates);
     }
 
@@ -144,6 +146,7 @@ public class Scraper : IScraper
             Chapters = fictionResponse.chapters,
             Created = fictionResponse.firstUpdate,
             Follows = fictionResponse.followers,
+            // RR considers a page 275 words
             WordCount = (int)(fictionResponse.pages * 275),
             PatreonId = patreonData?.Id
         };
@@ -154,79 +157,6 @@ public class Scraper : IScraper
             Patreon = patreonData,
             Author = profileData
         };
-    }
-
-    // legacy function without API access
-    public async Task<RRData.FictionData?> _ScrapeFictionAsync(string url)
-    {
-        var doc = await LoadFromWebAsync(url);
-
-        if (doc == null) return null;
-
-        var name = doc.DocumentNode
-            .SelectSingleNode("/html/body/div[3]/div/div/div/div[1]/div/div[1]/div[2]/div/h1")
-            .InnerText;
-
-        var profileHref =
-            doc.DocumentNode.SelectSingleNode(
-                    "/html/body/div[3]/div/div/div/div[1]/div/div[1]/div[2]/div/h4/span[2]/a")
-                .GetAttributeValue("href", null);
-
-        var profileLink = "https://www.royalroad.com" + profileHref;
-
-        var profileData = await ScrapeAuthorProfile(profileLink);
-        if (!profileData.HasValue) return null;
-
-        var follows = profileData.Value.Followers;
-        var wordCount = profileData.Value.WordCount;
-
-        // seconds passed since the unix epoch
-        var unixEpochOffset = int.Parse(doc
-            .DocumentNode
-            .SelectSingleNode("//time")
-            .GetAttributeValue("unixtime", null));
-
-        var created = DateTime.UnixEpoch.AddSeconds(unixEpochOffset);
-
-        var chapters = int.Parse(doc.DocumentNode.SelectSingleNode("//*[@id=\"chapters\"]")
-            .GetAttributeValue("data-chapters", ""));
-
-        var re = AuthorIdRx.Match(profileLink);
-
-        var fic = new RRData.FictionData()
-        {
-            Title = name,
-            AuthorId = int.Parse(re.Groups["id"].Value),
-            Follows = follows,
-            Created = created,
-            Chapters = chapters,
-            WordCount = wordCount,
-        };
-
-        // getting the patreon data onwards
-        var donateButtons =
-            doc.DocumentNode.SelectNodes(
-                "/html/body/div[3]/div/div/div/div[1]/div/div[2]/div/div[2]/div[4]/div[3]/div/a");
-
-        if (donateButtons != null)
-        {
-            var patreonLinkList = donateButtons
-                .Where(node => node.GetAttributeValue("href", null).Contains("patreon"))
-                .ToList();
-
-            if (patreonLinkList.Any())
-            {
-                var patreonLink = patreonLinkList[0].GetAttributeValue("href", null);
-                var patreonData = await ScrapePatreon(patreonLink);
-
-                if (patreonData.HasValue)
-                {
-                    return fic;
-                }
-            }
-        }
-
-        return null;
     }
 
     private async Task<List<RRData>> ScrapeFictionsAsync(IEnumerable<string> urls)
