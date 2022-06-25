@@ -39,3 +39,4 @@ async void UpdatingLoop()
 
 var task = Task.Run(UpdatingLoop);
 app.Run();
+ 

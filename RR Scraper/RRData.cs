@@ -1,40 +1,39 @@
-﻿namespace RR_Scraper
+﻿namespace RR_Scraper;
+
+// ReSharper disable once InconsistentNaming
+public record RRData
 {
-    // ReSharper disable once InconsistentNaming
-    public class RRData
+    public FictionData Fiction;
+    public AuthorData Author;
+    public PatreonData? Patreon;
+
+    public record FictionData
     {
-        public FictionData Fiction;
-        public AuthorData Author;
-        public PatreonData? Patreon;
+        public int Id;
+        public int AuthorId;
+        public int? PatreonId;
+        public DateTime Date;
+        public string Title;
+        public int Follows;
+        public long WordCount;
+        public DateTime Created;
+        public int Chapters;
+    }
 
-        public struct FictionData
-        {
-            public int Id;
-            public DateTime Date;
-            public string Title;
-            public int Follows;
-            public long WordCount;
-            public DateTime Created;
-            public int Chapters;
-            public int AuthorId;
-            public int? PatreonId;
-        }
+    public record PatreonData
+    {
+        public int Id;
+        public DateTime Date;
+        public int? Patrons;
+        public int? Income;
+    }
 
-        public struct PatreonData
-        {
-            public int Id;
-            public DateTime Date;
-            public int? Patrons;
-            public int? Income;
-        }
-
-        public struct AuthorData
-        {
-            public int Id;
-            public DateTime Date;
-            public string Username;
-            public long WordCount;
-            public int Followers;
-        }
+    public record AuthorData
+    {
+        public int Id;
+        public DateTime Date;
+        public string Username;
+        public long WordCount;
+        public int Followers;
     }
 }
