@@ -73,7 +73,7 @@ else
 		new TableColumn("Chapters", model => model.chapters)
 	};
 
-	private TableColumn _previousCol = null;
+	private TableColumn? _previousCol;
 	private bool _sortAscending = true;
 
 	private void SortTable(TableColumn column)
@@ -102,7 +102,6 @@ else
 			Config.GetConnectionString("default")
 		);
 	}
-
 
 	private async Task OnDateChanged(ChangeEventArgs arg)
 	{

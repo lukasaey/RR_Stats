@@ -1,6 +1,6 @@
 ﻿namespace RR_Stats.Models;
 
-public class FictionModel
+public record FictionModel
 { 
     public int id;
     public DateTime from_date;

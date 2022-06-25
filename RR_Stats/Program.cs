@@ -1,6 +1,6 @@
 using DataAccess;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
+using RR_Scraper;
+using RR_Stats;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,4 +28,14 @@ app.UseRouting();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
+var config = app.Configuration;
+var updater = new DBUpdater(config.GetSection("RRApiKey").Value, config.GetConnectionString("default"), Enumerable.Range(1, 10));
+
+async void UpdatingLoop()
+{
+    await updater.UpdateDB();
+    await Task.Delay(TimeSpan.FromDays(1));
+}
+
+var task = Task.Run(UpdatingLoop);
 app.Run();

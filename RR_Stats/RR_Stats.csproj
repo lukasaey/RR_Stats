@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataAccess\DataAccess.csproj" />
+    <ProjectReference Include="..\RR Scraper\RR Scraper.csproj" />
   </ItemGroup>
 
 </Project>
