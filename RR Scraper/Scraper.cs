@@ -128,44 +128,35 @@ public class Scraper : IScraper
 
         var profileResponse = await GetAuthorProfile(fictionResponse.author.id);
 
-        var profileData = new RRData.AuthorData()
-        {
-            Date = DateTime.Now,
-            Followers = profileResponse.followers,
-            Id = fictionResponse.author.id,
-            Username = fictionResponse.author.username,
-            WordCount = profileResponse.totalWords
-        };
+        var profileData = new RRData.AuthorData
+        (
+            fictionResponse.author.id,
+            DateTime.Now,
+            fictionResponse.author.username,
+            profileResponse.totalWords,
+            profileResponse.followers
+        );
 
         var fictionData = new RRData.FictionData
-        {
-            Id = fictionResponse.id,
-            Date = DateTime.Now,
-            Title = fictionResponse.title,
-            AuthorId = fictionResponse.author.id,
-            Chapters = fictionResponse.chapters,
-            Created = fictionResponse.firstUpdate,
-            Follows = fictionResponse.followers,
+        (
+            fictionResponse.id,
+            fictionResponse.author.id,
+            patreonData?.Id,
+            DateTime.Now,
+            fictionResponse.title,
+            fictionResponse.followers,
             // RR considers a page 275 words
-            WordCount = (int)(fictionResponse.pages * 275),
-            PatreonId = patreonData?.Id
-        };
+            fictionResponse.pages * 275,
+            fictionResponse.firstUpdate,
+            fictionResponse.chapters
+        );
 
-        return new RRData()
-        {
-            Fiction = fictionData,
-            Patreon = patreonData,
-            Author = profileData
-        };
+        return new RRData(fictionData, profileData, patreonData);
     }
 
-    private async Task<List<RRData>> ScrapeFictionsAsync(IEnumerable<string> urls)
+    private async Task<List<RRData>> GetFictionsAsync(IEnumerable<string> urls)
     {
         var fictions = new List<RRData>();
-        var urlArr = urls.ToArray();
-
-        var counter = 0;
-        var len = urlArr.Length;
 
         var block = new ActionBlock<(string, int)>(async args =>
             {
@@ -176,17 +167,15 @@ public class Scraper : IScraper
                 }
                 catch (TaskCanceledException)
                 {
-                    Console.WriteLine($"\nTimeout exception at {args.Item1}, ignoring");
+                    // likely a timeout, ignoring it
                     return;
                 }
-
-                Console.Write($"{counter++} / {len}\r");
 
                 if (fiction != null) fictions.Add(fiction);
             },
             new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _degreeOfParallelism });
 
-        foreach (string url in urlArr)
+        foreach (string url in urls)
         {
             var rx = FictionIdRx.Match(url);
             var id = int.Parse(rx.Groups["id"].Value);
@@ -211,18 +200,21 @@ public class Scraper : IScraper
 
         var patronCount = attrs["patron_count"]?.Value<int>();
 
-        var pledgeSum = attrs["pledge_sum"]?.Value<decimal>();
-
+        var pledgeSum = attrs["pledge_sum"]?.Value<float>();
+        
         int? income = null;
         if (pledgeSum.HasValue)
         {
-            var conversionRate = 1 /
-                                 (decimal)(_ratesDict[attrs["pledge_sum_currency"]?.Value<string>() ?? string.Empty] ??
-                                           throw new InvalidOperationException());
+            var rate = _ratesDict[attrs["pledge_sum_currency"]!.Value<string>()]?.Value<float>();
 
-            // it's stored as an int with a float value, so we need to divide by 100 to get the actual value,
-            // then we simply round and convert
-            income = (int)decimal.Round(pledgeSum.Value / 100 * conversionRate);
+            if (rate != null)
+            {
+                var conversionRate = 1.0f / rate.Value;
+
+                // it's stored as an int with a float value, so we need to divide by 100 to get the actual value,
+                // then we simply round and convert
+                income = (int)Math.Round(pledgeSum.Value / 100 * conversionRate);
+            }
         }
         else
         {
@@ -231,13 +223,13 @@ public class Scraper : IScraper
                 income = GetRangeAvg(str);
         }
 
-        return new RRData.PatreonData()
-        {
-            Date = DateTime.Now,
-            Id = id,
-            Income = income,
-            Patrons = patronCount
-        };
+        return new RRData.PatreonData
+        (
+            id,
+            DateTime.Now,
+            patronCount,
+            income
+        );
     }
 
     private async Task<RRData.PatreonData?> ScrapePatreon(string url)
@@ -312,26 +304,28 @@ public class Scraper : IScraper
         }
         else
         {
-            var conversionRate = 1 / (decimal)(_ratesDict[attrs["pledge_sum_currency"]?.ToString() ?? string.Empty] ??
-                                               throw new InvalidOperationException());
-
-            // it's stored weirdly, so we need to divide by 100 to get the actual value,
-            // then we simply round and convert
-            income = (int)decimal.Round(
-                (attrs["pledge_sum"] ?? throw new InvalidOperationException()).Value<decimal>() / 100 * conversionRate);
+            var rate = _ratesDict[attrs["pledge_sum_currency"]!.ToString()]?.Value<float>();
+            
+            if (rate != null)
+            {
+                var conversionRate = 1 / rate.Value;
+            
+                float pledge_sum = attrs["pledge_sum"]!.Value<float>();
+                // it's stored weirdly, so we need to divide by 100 to get the actual value,
+                // then we simply round and cast
+                income = (int)Math.Round(pledge_sum / 100 * conversionRate);
+            }
         }
 
         var patrons = attrs["patron_count"]?.Value<int>();
 
-        var data = new RRData.PatreonData()
-        {
-            Id = campaignId.Value<int>(),
-            Date = DateTime.Today,
-            Income = income,
-            Patrons = patrons
-        };
-
-        return data;
+        return new RRData.PatreonData
+        (
+            campaignId.Value<int>(),
+            DateTime.Today,
+            patrons,
+            income
+        );
     }
 
     private async Task<string?> GetGraphtreonIncome(string url)
@@ -359,40 +353,6 @@ public class Scraper : IScraper
         return response;
     }
 
-    private async Task<RRData.AuthorData?> ScrapeAuthorProfile(string url)
-    {
-        var doc = await LoadFromWebAsync(url);
-        if (doc == null) return null;
-
-        var words = int.Parse(
-            doc.DocumentNode.SelectSingleNode(
-                    "/html/body/div[3]/div/div/div/div/div[2]/div[3]/div[4]/table/tbody/tr[2]/td")
-                .InnerText.Trim()
-            , NumberStyles.AllowThousands, new CultureInfo("en-au")
-        );
-        var follows = int.Parse(
-            doc.DocumentNode.SelectSingleNode(
-                    "/html/body/div[3]/div/div/div/div/div[2]/div[3]/div[4]/table/tbody/tr[5]/td")
-                .InnerText.Trim()
-            , NumberStyles.AllowThousands, new CultureInfo("en-au")
-        );
-
-        string name = doc.DocumentNode.SelectSingleNode(
-            "/html/body/div[3]/div/div/div/div/div[1]/div/div/div[5]/div/div[1]/div/h1").InnerText.Trim();
-
-        var re = AuthorIdRx.Match(url);
-
-        var authorId = int.Parse(re.Groups["id"].Value);
-        return new RRData.AuthorData()
-        {
-            Id = authorId,
-            Date = DateTime.Today,
-            Username = name,
-            WordCount = words,
-            Followers = follows
-        };
-    }
-
     public async Task<List<RRData>> ScrapeSearchPages(IEnumerable<string> urls)
     {
         var links = new List<string>();
@@ -416,7 +376,7 @@ public class Scraper : IScraper
                 lock (links)
                     links.AddRange(list);
             },
-            new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1 });
+            new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _degreeOfParallelism });
 
         foreach (string url in urls)
         {
@@ -426,7 +386,7 @@ public class Scraper : IScraper
         block.Complete();
         await block.Completion;
 
-        return await ScrapeFictionsAsync(links);
+        return await GetFictionsAsync(links);
     }
 
     public async Task<List<RRData>> Scrape(IEnumerable<int> pages)

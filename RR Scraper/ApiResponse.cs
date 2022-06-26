@@ -1,4 +1,5 @@
 // ReSharper disable InconsistentNaming
+#pragma warning disable 8618
 
 namespace RR_Scraper;
 
