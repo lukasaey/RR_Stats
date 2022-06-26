@@ -8,6 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<IDataAccess, DataAccess.DataAccess>();
+builder.Services.AddSingleton(x =>
+{
+    var config = x.GetRequiredService<IConfiguration>();
+    var scraper = new Scraper(config.GetSection("RRApiKey").Value, config.GetConnectionString("default"));
+    return new DBUpdater(config.GetConnectionString("default"), Enumerable.Range(1, 10), scraper);
+});
+builder.Services.AddHostedService(provider => provider.GetService<DBUpdater>());
 
 var app = builder.Build();
 
@@ -28,15 +35,4 @@ app.UseRouting();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
-var config = app.Configuration;
-var updater = new DBUpdater(config.GetSection("RRApiKey").Value, config.GetConnectionString("default"), Enumerable.Range(1, 10));
-
-async void UpdatingLoop()
-{
-    await updater.UpdateDB();
-    await Task.Delay(TimeSpan.FromDays(1));
-}
-
-var task = Task.Run(UpdatingLoop);
 app.Run();
- 
