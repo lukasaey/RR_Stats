@@ -4,19 +4,16 @@ using MySql.Data.MySqlClient;
 
 namespace DataAccess;
 
-public class DataAccess : IDataAccess
+public class DataAccessor : IDataAccess
 {
-    public List<T> Query<T, TU>(string sql, TU parameters, string connectionString)
+    private readonly string connectionString;
+
+    public DataAccessor(string connectionString)
     {
-        using (IDbConnection connection = new MySqlConnection(connectionString))
-        {
-            connection.Open();
-            var rows = connection.Query<T>(sql, parameters);
-            return rows.ToList();
-        }
+        this.connectionString = connectionString;
     }
-   
-    public async Task<List<T>> QueryAsync<T, TU>(string sql, TU parameters, string connectionString)
+
+    public async Task<List<T>> QueryAsync<T, TU>(string sql, TU parameters)
     {
         using (IDbConnection connection = new MySqlConnection(connectionString))
         {
@@ -26,7 +23,7 @@ public class DataAccess : IDataAccess
         }
     }
 
-    public Task Execute<T>(string sql, T parameters, string connectionString)
+    public Task Execute<T>(string sql, T parameters)
     {
         using IDbConnection connection = new MySqlConnection(connectionString);
         connection.Open();
