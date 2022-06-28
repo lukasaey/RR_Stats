@@ -38,16 +38,20 @@ public class Scraper : IScraper
     private readonly int _timesToRepeatRequest;
     private readonly string _apikey;
 
-    public Scraper(IDataAccess data, string apikey, int degreeOfParallelism = 2, int timesToRepeatRequest = 2)
+    private Scraper(Dictionary<int, int> ficIdToPatreonId, string apikey, int degreeOfParallelism = 2, int timesToRepeatRequest = 2)
     {
         _degreeOfParallelism = degreeOfParallelism;
         _timesToRepeatRequest = timesToRepeatRequest;
         _apikey = apikey;
+        _ficIdToPatreonId = ficIdToPatreonId;
+    }
 
+    public static async Task<Scraper> CreateAsync(IDataAccess data, string apikey, int degreeOfParallelism = 2, int timesToRepeatRequest = 2)
+    {
         var sql = "SELECT DISTINCT id, patreon_id FROM fictions WHERE patreon_id IS NOT NULL;";
-        var query = data.QueryAsync<(int FicId, int PatId), dynamic>(sql, new { }).Result;
-
-        _ficIdToPatreonId = query.ToDictionary(t => t.FicId, t => t.PatId);
+        var query = await data.QueryAsync<(int FicId, int PatId), dynamic>(sql, new { });
+        var dict = query.ToDictionary(t => t.FicId, t => t.PatId);
+        return new Scraper(dict, apikey, degreeOfParallelism, timesToRepeatRequest);
     }
 
     private static JObject GetRates()
@@ -199,7 +203,7 @@ public class Scraper : IScraper
         var patronCount = attrs["patron_count"]?.Value<int>();
 
         var pledgeSum = attrs["pledge_sum"]?.Value<float>();
-        
+
         int? income = null;
         if (pledgeSum.HasValue)
         {
@@ -303,11 +307,11 @@ public class Scraper : IScraper
         else
         {
             var rate = _ratesDict[attrs["pledge_sum_currency"]!.ToString()]?.Value<float>();
-            
+
             if (rate != null)
             {
                 var conversionRate = 1 / rate.Value;
-            
+
                 float pledge_sum = attrs["pledge_sum"]!.Value<float>();
                 // it's stored weirdly, so we need to divide by 100 to get the actual value,
                 // then we simply round and cast
@@ -374,7 +378,7 @@ public class Scraper : IScraper
                 lock (links)
                     links.AddRange(list);
             },
-            new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = _degreeOfParallelism });
+            new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1 });
 
         foreach (string url in urls)
         {

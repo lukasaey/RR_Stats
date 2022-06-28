@@ -16,7 +16,7 @@ builder.Services.AddSingleton(x =>
 {
     var config = x.GetRequiredService<IConfiguration>();
     var data = x.GetRequiredService<IDataAccess>();
-    var scraper = new Scraper(data, config.GetSection("RRApiKey").Value);
+    var scraper = Scraper.CreateAsync(data, config.GetSection("RRApiKey").Value).Result;
     return new DBUpdater(data, scraper, Enumerable.Range(1, 10));
 });
 builder.Services.AddHostedService(provider => provider.GetService<DBUpdater>());

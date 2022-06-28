@@ -15,12 +15,10 @@ public class DataAccessor : IDataAccess
 
     public async Task<List<T>> QueryAsync<T, TU>(string sql, TU parameters)
     {
-        using (IDbConnection connection = new MySqlConnection(connectionString))
-        {
-            connection.Open();
-            var rows = await connection.QueryAsync<T>(sql, parameters);
-            return rows.ToList();
-        }
+        using IDbConnection connection = new MySqlConnection(connectionString);
+        connection.Open();
+        var rows = await connection.QueryAsync<T>(sql, parameters);
+        return rows.ToList();
     }
 
     public Task Execute<T>(string sql, T parameters)
