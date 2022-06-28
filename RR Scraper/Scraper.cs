@@ -1,13 +1,13 @@
 ﻿#nullable enable
+namespace RR_Scraper;
+
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks.Dataflow;
-
-namespace RR_Scraper;
+using DataAccess;
 
 public class Scraper : IScraper
 {
@@ -38,16 +38,14 @@ public class Scraper : IScraper
     private readonly int _timesToRepeatRequest;
     private readonly string _apikey;
 
-    public Scraper(string apikey, string connectionString, int degreeOfParallelism = 2, int timesToRepeatRequest = 2)
+    public Scraper(IDataAccess data, string apikey, int degreeOfParallelism = 2, int timesToRepeatRequest = 2)
     {
         _degreeOfParallelism = degreeOfParallelism;
         _timesToRepeatRequest = timesToRepeatRequest;
         _apikey = apikey;
 
-        var data = new DataAccess.DataAccess();
-
-        var sql = $"SELECT DISTINCT id, patreon_id FROM fictions WHERE patreon_id IS NOT NULL;";
-        var query = data.Query<(int FicId, int PatId), dynamic>(sql, new { }, connectionString);
+        var sql = "SELECT DISTINCT id, patreon_id FROM fictions WHERE patreon_id IS NOT NULL;";
+        var query = data.QueryAsync<(int FicId, int PatId), dynamic>(sql, new { }).Result;
 
         _ficIdToPatreonId = query.ToDictionary(t => t.FicId, t => t.PatId);
     }

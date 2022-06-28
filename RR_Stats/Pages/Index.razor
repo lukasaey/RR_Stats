@@ -30,7 +30,7 @@ else
 				{
 					<th>
 						<span class="child sort-link" @onclick="() => { SortTable(col); }">@col.Name</span>
-						<span class="child oi @(_sortAscending && _previousCol == col ? "oi oi-caret-bottom" : "oi oi-caret-top")"></span>
+						<span class="child oi @(_sortAscending && _previousCol == col ? "oi-caret-bottom" : "oi-caret-top")"></span>
 					</th>
 				}
 			</tr>
@@ -98,8 +98,7 @@ else
 	{
 		_fictions = await Data.QueryAsync<FictionModel, dynamic>(
 			"SELECT * FROM fictions WHERE from_date=CURDATE()", 
-			new { }, 
-			Config.GetConnectionString("default")
+			new { }
 		);
 	}
 
@@ -107,8 +106,7 @@ else
 	{
 		_fictions = await Data.QueryAsync<FictionModel, dynamic>(
 			"SELECT * FROM fictions WHERE from_date=@Date",
-			new { Date = arg.Value },
-			Config.GetConnectionString("default")
+			new { Date = arg.Value }
 		);
 	}
 
@@ -116,8 +114,7 @@ else
 	{
 		_fictions = await Data.QueryAsync<FictionModel, dynamic>(
 			"SELECT * FROM fictions WHERE LOCATE(@Str, title) != 0;",
-			new {Str = arg.Value},
-			Config.GetConnectionString("default")
+			new {Str = arg.Value}
 		);
 	}
 }

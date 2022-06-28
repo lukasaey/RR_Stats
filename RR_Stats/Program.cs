@@ -7,12 +7,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<IDataAccess, DataAccess.DataAccess>();
+builder.Services.AddSingleton<IDataAccess>(x =>
+{
+    var config = x.GetRequiredService<IConfiguration>();
+    return new DataAccessor(config.GetConnectionString("default"));
+});
 builder.Services.AddSingleton(x =>
 {
     var config = x.GetRequiredService<IConfiguration>();
-    var scraper = new Scraper(config.GetSection("RRApiKey").Value, config.GetConnectionString("default"));
-    return new DBUpdater(config.GetConnectionString("default"), Enumerable.Range(1, 10), scraper);
+    var data = x.GetRequiredService<IDataAccess>();
+    var scraper = new Scraper(data, config.GetSection("RRApiKey").Value);
+    return new DBUpdater(data, scraper, Enumerable.Range(1, 10));
 });
 builder.Services.AddHostedService(provider => provider.GetService<DBUpdater>());
 
