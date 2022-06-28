@@ -26,10 +26,6 @@ public class Scraper : IScraper
         new(@"https*://www.royalroad.com/fiction/(?<id>\d+)/\w+",
             RegexOptions.Compiled);
 
-    private static readonly Regex AuthorIdRx =
-        new(@"https*://www.royalroad.com/profile/(?<id>\d+)",
-            RegexOptions.Compiled);
-
     private readonly Dictionary<int, int> _ficIdToPatreonId;
 
     private readonly JObject _ratesDict = GetRates();
